@@ -1,249 +1,90 @@
 ﻿using System;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
 using Tesseract;
 
 namespace TextFromImages
 {
-    public class Program
+    class Program
     {
-        public static void Main(string[] args)
+        static void Main(string[] args)
         {
-            try
+            // Path to the InputImages folder
+            string inputFolder = @"D:\Git\neocortexapi\neocortexapi-Fusion_Coders\source\MySEProject\Fusion_Coders_SE_Project\TextFromImages\TextFromImages\InputImages";
+
+            // Check if the folder exists
+            if (!Directory.Exists(inputFolder))
             {
-                ProcessImages();
+                Console.WriteLine("Input folder does not exist. Please check the path.");
+                return;
             }
-            catch (Exception ex)
+
+            // Get all image files from the folder
+            string[] imageFiles = Directory.GetFiles(inputFolder, "*.jpg");
+
+            if (imageFiles.Length == 0)
             {
-                Console.WriteLine($"An error occurred: {ex.Message}");
+                Console.WriteLine("No image files found in the InputImages folder.");
+                return;
             }
 
-            Console.WriteLine("\nPress any key to exit...");
-            Console.ReadKey();
-        }
-
-        private static void ProcessImages()
-        {
-            string inputFolderPath = @"D:\Git\neocortexapi\neocortexapi-Fusion_Coders\source\MySEProject\Fusion_Coders_SE_Project\TextFromImages\TextFromImages\InputImages";
-            string[] imageNames = { "image1.jpg", "image2.jpg" };
-
-            foreach (string imageName in imageNames)
+            // Process each image
+            foreach (var imageFile in imageFiles)
             {
-                string imagePath = Path.Combine(inputFolderPath, imageName);
-                if (!File.Exists(imagePath))
-                {
-                    Console.WriteLine($"Image file not found: {imageName}");
-                    continue;
-                }
+                Console.WriteLine($"Processing: {Path.GetFileName(imageFile)}");
 
-                Console.WriteLine($"\nProcessing image: {imageName}");
-                Console.WriteLine("==================================");
+                // Original Image
+                string originalText = ExtractText(imageFile);
+                Console.WriteLine("Original Text:\n" + originalText);
 
-                ProcessImageWithVariations(imagePath);
-            }
-        }
+                // Rotate Image (90 degrees)
+                string rotatedImagePath = ImagePreprocessor.RotateImage(imageFile, 90);
+                string rotatedText = ExtractText(rotatedImagePath);
+                Console.WriteLine("Rotated Text:\n" + rotatedText);
 
-        private static void ProcessImageWithVariations(string imagePath)
-        {
-            string outputDir = Path.Combine(Path.GetDirectoryName(imagePath) ?? string.Empty, "Preprocessed");
-            Directory.CreateDirectory(outputDir);
+                // Shift Image (50 pixels right, 50 pixels down)
+                string shiftedImagePath = ImagePreprocessor.ShiftImage(imageFile, 50, 50);
+                string shiftedText = ExtractText(shiftedImagePath);
+                Console.WriteLine("Shifted Text:\n" + shiftedText);
 
-            using (Bitmap originalImage = LoadImage(imagePath))
-            {
-                if (originalImage == null) return;
+                // Resize Image (50% smaller)
+                string resizedImagePath = ImagePreprocessor.ResizeImage(imageFile, 0.5f);
+                string resizedText = ExtractText(resizedImagePath);
+                Console.WriteLine("Resized Text:\n" + resizedText);
 
-                ProcessOriginal(originalImage, outputDir, imagePath);
-                ProcessRotated(originalImage, outputDir, imagePath);
-                ProcessEnhanced(originalImage, outputDir, imagePath);
-                ProcessRotatedAndEnhanced(originalImage, outputDir, imagePath);
-            }
-        }
+                // Convert to Grayscale
+                string grayscaleImagePath = ImagePreprocessor.ConvertToGrayscale(imageFile);
+                string grayscaleText = ExtractText(grayscaleImagePath);
+                Console.WriteLine("Grayscale Text:\n" + grayscaleText);
 
-        private static void ProcessOriginal(Bitmap originalImage, string outputDir, string imagePath)
-        {
-            using (Bitmap processedImage = new Bitmap(originalImage))
-            {
-                ProcessAndSaveVariation(processedImage, "Original", outputDir, imagePath);
-            }
-        }
+                // Clean up temporary files
+                File.Delete(rotatedImagePath);
+                File.Delete(shiftedImagePath);
+                File.Delete(resizedImagePath);
+                File.Delete(grayscaleImagePath);
 
-        private static void ProcessRotated(Bitmap originalImage, string outputDir, string imagePath)
-        {
-            using (Bitmap rotated = RotateImage(originalImage))
-            {
-                if (rotated != null)
-                {
-                    ProcessAndSaveVariation(rotated, "Rotated", outputDir, imagePath);
-                }
+                Console.WriteLine("----------------------------------------");
             }
         }
 
-        private static void ProcessEnhanced(Bitmap originalImage, string outputDir, string imagePath)
-        {
-            using (Bitmap enhanced = EnhanceImage(originalImage))
-            {
-                if (enhanced != null)
-                {
-                    ProcessAndSaveVariation(enhanced, "Enhanced", outputDir, imagePath);
-                }
-            }
-        }
-
-        private static void ProcessRotatedAndEnhanced(Bitmap originalImage, string outputDir, string imagePath)
-        {
-            using (Bitmap rotated = RotateImage(originalImage))
-            {
-                if (rotated != null)
-                {
-                    using (Bitmap enhanced = EnhanceImage(rotated))
-                    {
-                        if (enhanced != null)
-                        {
-                            ProcessAndSaveVariation(enhanced, "RotatedAndEnhanced", outputDir, imagePath);
-                        }
-                    }
-                }
-            }
-        }
-
-        private static void ProcessAndSaveVariation(Bitmap image, string variationName, string outputDir, string imagePath)
-        {
-            Console.WriteLine($"\nTrying {variationName} preprocessing:");
-            string outputPath = Path.Combine(outputDir, $"{variationName}_{Path.GetFileName(imagePath)}");
-            SaveImage(image, outputPath);
-            Console.WriteLine($"Saved preprocessed image: {outputPath}");
-
-            string extractedText = ExtractTextUsingTesseract(image);
-            Console.WriteLine("Extracted Text:");
-            Console.WriteLine(extractedText);
-            Console.WriteLine($"Character count: {extractedText.Length}");
-        }
-
-        private static Bitmap LoadImage(string imagePath)
-        {
-            try
-            {
-                return new Bitmap(imagePath);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error loading image: {ex.Message}");
-                return null;
-            }
-        }
-
-        private static Bitmap RotateImage(Bitmap sourceImage)
-        {
-            try
-            {
-                Bitmap rotated = new Bitmap(sourceImage.Width, sourceImage.Height);
-                try
-                {
-                    using (Graphics g = Graphics.FromImage(rotated))
-                    {
-                        g.Clear(Color.White);
-                        g.DrawImage(sourceImage, 0, 0, sourceImage.Width, sourceImage.Height);
-                    }
-                    rotated.RotateFlip(RotateFlipType.Rotate90FlipNone);
-                    return rotated;
-                }
-                catch
-                {
-                    rotated.Dispose();
-                    throw;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error in rotation: {ex.Message}");
-                return null;
-            }
-        }
-
-        private static Bitmap EnhanceImage(Bitmap sourceImage)
-        {
-            try
-            {
-                Bitmap enhanced = new Bitmap(sourceImage.Width, sourceImage.Height);
-                try
-                {
-                    using (Graphics g = Graphics.FromImage(enhanced))
-                    {
-                        using (ImageAttributes attributes = new ImageAttributes())
-                        {
-                            ColorMatrix colorMatrix = new ColorMatrix(new float[][]
-                            {
-                                new float[] {1.5f, 0, 0, 0, 0},
-                                new float[] {0, 1.5f, 0, 0, 0},
-                                new float[] {0, 0, 1.5f, 0, 0},
-                                new float[] {0, 0, 0, 1, 0},
-                                new float[] {-0.2f, -0.2f, -0.2f, 0, 1}
-                            });
-
-                            attributes.SetColorMatrix(colorMatrix);
-                            g.DrawImage(sourceImage,
-                                new Rectangle(0, 0, sourceImage.Width, sourceImage.Height),
-                                0, 0, sourceImage.Width, sourceImage.Height,
-                                GraphicsUnit.Pixel,
-                                attributes);
-                        }
-                    }
-                    return enhanced;
-                }
-                catch
-                {
-                    enhanced.Dispose();
-                    throw;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error in enhancement: {ex.Message}");
-                return null;
-            }
-        }
-
-        private static string ExtractTextUsingTesseract(Bitmap image)
+        // Method to extract text from an image using Tesseract OCR
+        static string ExtractText(string imagePath)
         {
             try
             {
                 using (var engine = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default))
                 {
-                    engine.SetVariable("tessedit_char_whitelist",
-                        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,!?-_'\"()[]{}:;/ ");
-
-                    using (var page = engine.Process(image))
+                    using (var img = Pix.LoadFromFile(imagePath))
                     {
-                        float confidence = page.GetMeanConfidence();
-                        string text = page.GetText()?.Trim() ?? string.Empty;
-                        Console.WriteLine($"Confidence: {confidence:P2}");
-                        return text;
+                        using (var page = engine.Process(img))
+                        {
+                            return page.GetText();
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in OCR extraction: {ex.Message}");
-                return string.Empty;
-            }
-        }
-
-        private static void SaveImage(Bitmap image, string outputPath)
-        {
-            try
-            {
-                if (image != null)
-                {
-                    using (var stream = new FileStream(outputPath, FileMode.Create))
-                    {
-                        image.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error saving image: {ex.Message}");
+                return $"Error extracting text: {ex.Message}";
             }
         }
     }
