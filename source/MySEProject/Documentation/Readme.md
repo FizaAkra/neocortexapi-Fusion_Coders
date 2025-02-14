@@ -1,0 +1,2 @@
+## Introduction
+This C# console application is designed to extract text from images using Optical Character Recognition (OCR) technology. The project utilizes Tesseract OCR engine along with image preprocessing capabilities to enhance text extraction accuracy. Our implementation focuses on improving text recognition by applying various image transformations such as rotation, shifting, and quality adjustments before performing the OCR process.
