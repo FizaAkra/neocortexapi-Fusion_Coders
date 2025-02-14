@@ -15,3 +15,13 @@ This C# console application is designed to extract text from images using Optica
      * System.Drawing.Common
      * Tesseract.Drawing
    - Download and install Tesseract language data files (eng.traineddata)
+## Usage
+1. Application Setup
+   - Place input images in the designated input folder
+   - Configure desired preprocessing parameters
+   - Run the console application with appropriate command-line arguments
+2. Features
+   - Multiple image preprocessing options
+   - Text extraction using Tesseract OCR
+   - Quality comparison of different preprocessing methods
+   - Output in various formats (.txt)
