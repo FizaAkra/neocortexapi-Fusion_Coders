@@ -1,106 +1,52 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.IO;
 
-namespace TextFromImages
+class ImageProcessor
 {
-    public static class ImagePreprocessor
+    public static Dictionary<string, Bitmap> ApplyTransformations(Bitmap original)
     {
-        // Method to rotate an image by a specified angle
-        public static string RotateImage(string imagePath, float angle)
+        Dictionary<string, Bitmap> processedImages = new Dictionary<string, Bitmap>();
+
+        processedImages.Add("Original", new Bitmap(original));
+        processedImages.Add("Grayscale", ConvertToGrayscale(original));
+        processedImages.Add("Rotated_90", RotateImage(original, 90));
+        processedImages.Add("Rotated_180", RotateImage(original, 180));
+
+        return processedImages;
+    }
+
+    private static Bitmap ConvertToGrayscale(Bitmap image)
+    {
+        Bitmap grayImage = new Bitmap(image.Width, image.Height);
+        using (Graphics g = Graphics.FromImage(grayImage))
         {
-            using (var bmp = new Bitmap(imagePath))
-            {
-                using (var rotatedBmp = new Bitmap(bmp.Width, bmp.Height))
-                {
-                    using (var g = Graphics.FromImage(rotatedBmp))
-                    {
-                        g.TranslateTransform((float)bmp.Width / 2, (float)bmp.Height / 2);
-                        g.RotateTransform(angle);
-                        g.TranslateTransform(-(float)bmp.Width / 2, -(float)bmp.Height / 2);
-                        g.DrawImage(bmp, new Point(0, 0));
-                    }
+            ColorMatrix colorMatrix = new ColorMatrix(new float[][] {
+                new float[] { 0.3f, 0.3f, 0.3f, 0, 0 },
+                new float[] { 0.59f, 0.59f, 0.59f, 0, 0 },
+                new float[] { 0.11f, 0.11f, 0.11f, 0, 0 },
+                new float[] { 0, 0, 0, 1, 0 },
+                new float[] { 0, 0, 0, 0, 1 }
+            });
 
-                    string rotatedImagePath = Path.GetTempFileName();
-                    rotatedBmp.Save(rotatedImagePath, ImageFormat.Jpeg);
-                    return rotatedImagePath;
-                }
-            }
+            ImageAttributes attributes = new ImageAttributes();
+            attributes.SetColorMatrix(colorMatrix);
+            g.DrawImage(image, new Rectangle(0, 0, image.Width, image.Height), 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, attributes);
         }
+        return grayImage;
+    }
 
-        // Method to shift an image by specified x and y pixels
-        public static string ShiftImage(string imagePath, int xShift, int yShift)
+    private static Bitmap RotateImage(Bitmap image, float angle)
+    {
+        Bitmap rotatedImage = new Bitmap(image.Width, image.Height);
+        using (Graphics g = Graphics.FromImage(rotatedImage))
         {
-            using (var bmp = new Bitmap(imagePath))
-            {
-                using (var shiftedBmp = new Bitmap(bmp.Width, bmp.Height))
-                {
-                    using (var g = Graphics.FromImage(shiftedBmp))
-                    {
-                        g.DrawImage(bmp, new Point(xShift, yShift));
-                    }
-
-                    string shiftedImagePath = Path.GetTempFileName();
-                    shiftedBmp.Save(shiftedImagePath, ImageFormat.Jpeg);
-                    return shiftedImagePath;
-                }
-            }
+            g.TranslateTransform((float)image.Width / 2, (float)image.Height / 2);
+            g.RotateTransform(angle);
+            g.TranslateTransform(-(float)image.Width / 2, -(float)image.Height / 2);
+            g.DrawImage(image, new Point(0, 0));
         }
-
-        // Method to resize an image by a specified scale factor
-        public static string ResizeImage(string imagePath, float scale)
-        {
-            using (var bmp = new Bitmap(imagePath))
-            {
-                int newWidth = (int)(bmp.Width * scale);
-                int newHeight = (int)(bmp.Height * scale);
-
-                using (var resizedBmp = new Bitmap(newWidth, newHeight))
-                {
-                    using (var g = Graphics.FromImage(resizedBmp))
-                    {
-                        g.DrawImage(bmp, 0, 0, newWidth, newHeight);
-                    }
-
-                    string resizedImagePath = Path.GetTempFileName();
-                    resizedBmp.Save(resizedImagePath, ImageFormat.Jpeg);
-                    return resizedImagePath;
-                }
-            }
-        }
-
-        // Method to convert an image to grayscale
-        public static string ConvertToGrayscale(string imagePath)
-        {
-            using (var bmp = new Bitmap(imagePath))
-            {
-                using (var grayscaleBmp = new Bitmap(bmp.Width, bmp.Height))
-                {
-                    using (var g = Graphics.FromImage(grayscaleBmp))
-                    {
-                        var colorMatrix = new System.Drawing.Imaging.ColorMatrix(
-                            new float[][]
-                            {
-                                new float[] { 0.299f, 0.299f, 0.299f, 0, 0 },
-                                new float[] { 0.587f, 0.587f, 0.587f, 0, 0 },
-                                new float[] { 0.114f, 0.114f, 0.114f, 0, 0 },
-                                new float[] { 0, 0, 0, 1, 0 },
-                                new float[] { 0, 0, 0, 0, 1 }
-                            });
-
-                        var attributes = new ImageAttributes();
-                        attributes.SetColorMatrix(colorMatrix);
-
-                        g.DrawImage(bmp, new Rectangle(0, 0, bmp.Width, bmp.Height),
-                            0, 0, bmp.Width, bmp.Height, GraphicsUnit.Pixel, attributes);
-                    }
-
-                    string grayscaleImagePath = Path.GetTempFileName();
-                    grayscaleBmp.Save(grayscaleImagePath, ImageFormat.Jpeg);
-                    return grayscaleImagePath;
-                }
-            }
-        }
+        return rotatedImage;
     }
 }
