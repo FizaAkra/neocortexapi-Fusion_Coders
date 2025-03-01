@@ -10,6 +10,11 @@
 		<PackageReference Include="Tesseract" Version="5.2.0" />
 	</ItemGroup>
 	<ItemGroup>
+	  <Reference Include="Tesseract">
+	    <HintPath>C:\Program Files\Tesseract-OCR\tesseract.exe</HintPath>
+	  </Reference>
+	</ItemGroup>
+	<ItemGroup>
 		<None Update="tessdata\**">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>

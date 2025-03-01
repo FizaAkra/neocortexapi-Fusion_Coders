@@ -15,7 +15,7 @@ class Program
             Directory.CreateDirectory(outputFolder);
         }
 
-        string terrasectApiKey = "your-api-key-here"; // Replace with your actual API key
+        string terrasectApiKey = "VBvXX77MpPGeeD3smbnBwEZHAadRW4O4"; // Replace with your actual API key
         TextExtractor extractor = new TextExtractor(terrasectApiKey);
 
         foreach (var imagePath in Directory.GetFiles(inputFolder))
