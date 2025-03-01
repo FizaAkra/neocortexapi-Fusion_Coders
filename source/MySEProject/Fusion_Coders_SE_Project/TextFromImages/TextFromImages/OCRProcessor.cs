@@ -1,16 +1,34 @@
-﻿using Tesseract;
+﻿using System;
 using System.Drawing;
+using System.Drawing.Imaging; // Explicitly using System.Drawing.Imaging
+using System.IO;
+using Tesseract;
 
-class OCRProcessor
+namespace TextFromImages
 {
-    public static string ExtractText(Bitmap image)
+    public class OCRProcessor
     {
-        using (var engine = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default))
+        private readonly TesseractEngine _engine;
+
+        public OCRProcessor()
         {
-            using (var img = PixConverter.ToPix(image))
+            _engine = new TesseractEngine(@"C:\Program Files\Tesseract-OCR\tessdata", "eng", EngineMode.Default);
+        }
+
+        public string ExtractText(Bitmap image)
+        {
+            using (MemoryStream memoryStream = new MemoryStream())
             {
-                var result = engine.Process(img);
-                return result.GetText();
+                // Explicitly specify System.Drawing.Imaging.ImageFormat.Png
+                image.Save(memoryStream, System.Drawing.Imaging.ImageFormat.Png);
+
+                using (var pix = Pix.LoadFromMemory(memoryStream.ToArray()))
+                {
+                    using (var page = _engine.Process(pix))
+                    {
+                        return page.GetText();
+                    }
+                }
             }
         }
     }

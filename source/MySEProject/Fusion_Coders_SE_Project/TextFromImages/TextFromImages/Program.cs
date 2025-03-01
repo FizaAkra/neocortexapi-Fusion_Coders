@@ -1,78 +1,51 @@
 ﻿using System;
 using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
-using Tesseract;
 
 class Program
 {
-    static string inputFolder = @"D:\Git\neocortexapi\neocortexapi-Fusion_Coders\source\MySEProject\Fusion_Coders_SE_Project\TextFromImages\TextFromImages\InputImages";
-    static string outputFolder = @"D:\Git\neocortexapi\neocortexapi-Fusion_Coders\source\MySEProject\Fusion_Coders_SE_Project\TextFromImages\TextFromImages\OutputText";
-
-    static void Main()
+    static void Main(string[] args)
     {
+        string inputFolder = @"D:\Git\neocortexapi\neocortexapi-Fusion_Coders\source\MySEProject\Fusion_Coders_SE_Project\TextFromImages\InputImages";
+        string outputFolder = @"D:\Git\neocortexapi\neocortexapi-Fusion_Coders\source\MySEProject\Fusion_Coders_SE_Project\TextFromImages\OutputText";
+
+        // Create output folder if it doesn't exist
         if (!Directory.Exists(outputFolder))
+        {
             Directory.CreateDirectory(outputFolder);
-
-        string[] imageFiles = Directory.GetFiles(inputFolder, "*.jpg");
-        foreach (string file in imageFiles)
-        {
-            ProcessImage(file);
         }
-    }
 
-    static void ProcessImage(string imagePath)
-    {
-        try
+        string terrasectApiKey = "your-api-key-here"; // Replace with your actual API key
+        TextExtractor extractor = new TextExtractor(terrasectApiKey);
+
+        foreach (var imagePath in Directory.GetFiles(inputFolder))
         {
-            Bitmap originalImage = new Bitmap(imagePath);
-            Bitmap rotatedImage = RotateImage(originalImage, 90);
-            Bitmap shiftedImage = ShiftImage(rotatedImage, 10, 10);
-
-            string extractedText = ExtractText(shiftedImage);
-            string outputTextPath = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(imagePath) + ".txt");
-
-            File.WriteAllText(outputTextPath, extractedText);
-            Console.WriteLine($"Processed: {imagePath}, Output: {outputTextPath}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error processing {imagePath}: {ex.Message}");
-        }
-    }
-
-    static string ExtractText(Bitmap image)
-    {
-        using (var engine = new TesseractEngine(@"./tessdata", "eng", EngineMode.Default))
-        {
-            using (var img = PixConverter.ToPix(image))
+            try
             {
-                var result = engine.Process(img);
-                return result.GetText();
+                Bitmap img = new Bitmap(imagePath);
+
+                // Apply transformations (rotation and shifting)
+                img = ImageProcessor.ApplyTransformations(img, rotationAngle: 90, xShift: 5, yShift: 5);
+
+                // Save the transformed image temporarily for text extraction
+                string tempImagePath = Path.Combine(outputFolder, "temp_" + Path.GetFileName(imagePath));
+                img.Save(tempImagePath, System.Drawing.Imaging.ImageFormat.Jpeg);
+
+                // Extract text from transformed image
+                string extractedText = extractor.ExtractTextFromImage(tempImagePath);
+
+                // Save extracted text to a text file
+                string outputTextPath = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(imagePath) + "_extracted.txt");
+                File.WriteAllText(outputTextPath, extractedText);
+
+                Console.WriteLine($"Extracted text saved to: {outputTextPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error processing image {imagePath}: {ex.Message}");
             }
         }
-    }
 
-    static Bitmap RotateImage(Bitmap image, float angle)
-    {
-        Bitmap rotated = new Bitmap(image.Width, image.Height);
-        using (Graphics g = Graphics.FromImage(rotated))
-        {
-            g.TranslateTransform(image.Width / 2, image.Height / 2);
-            g.RotateTransform(angle);
-            g.TranslateTransform(-image.Width / 2, -image.Height / 2);
-            g.DrawImage(image, new Point(0, 0));
-        }
-        return rotated;
-    }
-
-    static Bitmap ShiftImage(Bitmap image, int shiftX, int shiftY)
-    {
-        Bitmap shifted = new Bitmap(image.Width, image.Height);
-        using (Graphics g = Graphics.FromImage(shifted))
-        {
-            g.DrawImage(image, new Rectangle(shiftX, shiftY, image.Width, image.Height));
-        }
-        return shifted;
+        Console.WriteLine("Text extraction process completed.");
     }
 }
