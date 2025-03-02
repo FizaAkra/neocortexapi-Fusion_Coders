@@ -42,3 +42,11 @@ This C# console application is designed to extract text from images using Optica
    * Rotation correction 
    * Perspective transformation
    * Scaling and resolution adjustment
+3. **OCR Processing Flow**
+   * Load image from input directory
+   * Apply selected preprocessing techniques
+   * Initialize Tesseract engine with appropriate parameters
+   * Process image through OCR
+   * Store extracted text and quality metrics
+   * Compare results across different preprocessing methods
+   * Output results to specified format
