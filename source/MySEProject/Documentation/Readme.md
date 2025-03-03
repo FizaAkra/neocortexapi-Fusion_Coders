@@ -25,3 +25,28 @@ This C# console application is designed to extract text from images using Optica
    - Text extraction using Tesseract OCR
    - Quality comparison of different preprocessing methods
    - Output in various formats (.txt)
+
+## Project Structure & Implementation
+
+1. **Core Components**
+   * ImagePreprocessor: Handles various image transformations
+   * OCREngine: Manages Tesseract integration and text extraction
+   * ResultEvaluator: Compares and analyzes extraction quality
+   * ConsoleInterface: Processes command-line arguments
+
+2. **Image Preprocessing Pipeline**
+   * Grayscale conversion
+   * Noise reduction
+   * Contrast enhancement
+   * Binarization/thresholding
+   * Rotation correction 
+   * Perspective transformation
+   * Scaling and resolution adjustment
+3. **OCR Processing Flow**
+   * Load image from input directory
+   * Apply selected preprocessing techniques
+   * Initialize Tesseract engine with appropriate parameters
+   * Process image through OCR
+   * Store extracted text and quality metrics
+   * Compare results across different preprocessing methods
+   * Output results to specified format
