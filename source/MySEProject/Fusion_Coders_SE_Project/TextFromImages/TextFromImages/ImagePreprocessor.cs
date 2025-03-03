@@ -1,34 +1,40 @@
 ﻿using System;
 using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
 
 public class ImageProcessor
 {
-    // Static method for rotation
+    // Rotate image by specified angle
     public static Bitmap RotateImage(Bitmap img, float angle)
     {
-        img.RotateFlip(RotateFlipType.RotateNoneFlipNone); // Apply rotation logic here
-        img = new Bitmap(img);
-        img.RotateFlip(RotateFlipType.Rotate90FlipNone); // Rotate by 90 degrees (you can change this)
-        return img;
-    }
-
-    // Static method for shifting the image
-    public static Bitmap ShiftImage(Bitmap img, int xShift, int yShift)
-    {
-        Bitmap shiftedImg = new Bitmap(img.Width, img.Height);
-        using (Graphics g = Graphics.FromImage(shiftedImg))
+        Bitmap rotated = new Bitmap(img.Width, img.Height);
+        using (Graphics g = Graphics.FromImage(rotated))
         {
-            g.Clear(Color.White);
-            g.DrawImage(img, new Point(xShift, yShift));
+            g.TranslateTransform(img.Width / 2, img.Height / 2);
+            g.RotateTransform(angle);
+            g.TranslateTransform(-img.Width / 2, -img.Height / 2);
+            g.DrawImage(img, new Point(0, 0));
         }
-        return shiftedImg;
+        return rotated;
     }
 
-    // Static method to apply multiple transformations (rotation + shift)
-    public static Bitmap ApplyTransformations(Bitmap img, float rotationAngle, int xShift, int yShift)
+    // Apply other transformations (e.g., shifting, grayscale)
+    public static Bitmap ApplyTransformations(Bitmap img)
     {
-        img = RotateImage(img, rotationAngle);
-        img = ShiftImage(img, xShift, yShift);
-        return img;
+        Bitmap transformed = new Bitmap(img);
+        using (Graphics g = Graphics.FromImage(transformed))
+        {
+            g.DrawImage(img, 0, 0);
+        }
+        return transformed;
+    }
+
+    // Save preprocessed image
+    public static string SaveImage(Bitmap img, string originalPath, string suffix)
+    {
+        string newPath = Path.Combine(Path.GetDirectoryName(originalPath), Path.GetFileNameWithoutExtension(originalPath) + suffix + ".jpg");
+        img.Save(newPath, ImageFormat.Jpeg);
+        return newPath;
     }
 }

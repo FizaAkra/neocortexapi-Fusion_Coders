@@ -1,51 +1,84 @@
 ﻿using System;
-using System.Drawing;
 using System.IO;
+using System.Net.Http;
+using System.Threading.Tasks;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 
 class Program
 {
-    static void Main(string[] args)
+    static async Task Main()
     {
-        string inputFolder = @"D:\Git\neocortexapi\neocortexapi-Fusion_Coders\source\MySEProject\Fusion_Coders_SE_Project\TextFromImages\InputImages";
-        string outputFolder = @"D:\Git\neocortexapi\neocortexapi-Fusion_Coders\source\MySEProject\Fusion_Coders_SE_Project\TextFromImages\OutputText";
+        string inputFolder = @"D:\Git\neocortexapi\neocortexapi-Fusion_Coders\source\MySEProject\Fusion_Coders_SE_Project\TextFromImages\TextFromImages\InputImages";
+        string outputFolder = Path.Combine(inputFolder, "OutputImages");
+        string extractedTextFolder = Path.Combine(inputFolder, "ExtractedText");
 
-        // Create output folder if it doesn't exist
-        if (!Directory.Exists(outputFolder))
+        // Ensure output directories exist
+        Directory.CreateDirectory(outputFolder);
+        Directory.CreateDirectory(extractedTextFolder);
+
+        // Process each image
+        foreach (string imagePath in Directory.GetFiles(inputFolder, "*.jpg"))
         {
-            Directory.CreateDirectory(outputFolder);
+            Console.WriteLine($"Processing: {Path.GetFileName(imagePath)}");
+
+            // Apply preprocessing
+            string processedImagePath = ProcessImage(imagePath, outputFolder);
+
+            // Extract text
+            string extractedText = await ExtractTextFromImage(processedImagePath);
+
+            // Save extracted text
+            string textFilePath = Path.Combine(extractedTextFolder, Path.GetFileNameWithoutExtension(imagePath) + ".txt");
+            File.WriteAllText(textFilePath, extractedText);
+
+            Console.WriteLine($"✅ Text extracted and saved: {textFilePath}\n");
         }
 
-        string terrasectApiKey = "VBvXX77MpPGeeD3smbnBwEZHAadRW4O4"; // Replace with your actual API key
-        TextExtractor extractor = new TextExtractor(terrasectApiKey);
+        Console.WriteLine("🎉 All images processed successfully!");
+    }
 
-        foreach (var imagePath in Directory.GetFiles(inputFolder))
+    // 📌 Apply preprocessing: Convert to grayscale and rotate image
+    static string ProcessImage(string imagePath, string outputFolder)
+    {
+        string outputImagePath = Path.Combine(outputFolder, Path.GetFileName(imagePath));
+
+        using (Image<Rgba32> image = Image.Load<Rgba32>(imagePath))
         {
-            try
-            {
-                Bitmap img = new Bitmap(imagePath);
+            // Convert to grayscale
+            image.Mutate(x => x.Grayscale());
 
-                // Apply transformations (rotation and shifting)
-                img = ImageProcessor.ApplyTransformations(img, rotationAngle: 90, xShift: 5, yShift: 5);
+            // Rotate the image by 90 degrees
+            image.Mutate(x => x.Rotate(90));
 
-                // Save the transformed image temporarily for text extraction
-                string tempImagePath = Path.Combine(outputFolder, "temp_" + Path.GetFileName(imagePath));
-                img.Save(tempImagePath, System.Drawing.Imaging.ImageFormat.Jpeg);
-
-                // Extract text from transformed image
-                string extractedText = extractor.ExtractTextFromImage(tempImagePath);
-
-                // Save extracted text to a text file
-                string outputTextPath = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(imagePath) + "_extracted.txt");
-                File.WriteAllText(outputTextPath, extractedText);
-
-                Console.WriteLine($"Extracted text saved to: {outputTextPath}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error processing image {imagePath}: {ex.Message}");
-            }
+            // Save processed image
+            image.Save(outputImagePath);
         }
 
-        Console.WriteLine("Text extraction process completed.");
+        return outputImagePath;
+    }
+
+    // 📌 Function to send image to Terrasect API and extract text
+    static async Task<string> ExtractTextFromImage(string imagePath)
+    {
+        try
+        {
+            using (var client = new HttpClient())
+            using (var form = new MultipartFormDataContent())
+            {
+                form.Add(new ByteArrayContent(File.ReadAllBytes(imagePath)), "file", "image.jpg");
+
+                HttpResponseMessage response = await client.PostAsync("VBvXX77MpPGeeD3smbnBwEZHAadRW4O4", form);
+                response.EnsureSuccessStatusCode();
+
+                return await response.Content.ReadAsStringAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error extracting text: {ex.Message}");
+            return "Error extracting text.";
+        }
     }
 }
