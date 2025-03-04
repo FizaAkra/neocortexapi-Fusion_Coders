@@ -8,7 +8,7 @@ namespace TextFromImages
     {
         static async Task Main()
         {
-            string inputFolder = @"D:\Git\neocortexapi\neocortexapi-Fusion_Coders\source\MySEProject\Fusion_Coders_SE_Project\TextFromImages\TextFromImages\InputImages";
+            string inputFolder = @"D:\fusionProject\neocortexapi-Fusion_Coders\source\MySEProject\Fusion_Coders_SE_Project\TextFromImages\TextFromImages\InputImages";
             string outputFolder = Path.Combine(inputFolder, "OutputImages");
             string extractedTextFolder = Path.Combine(inputFolder, "ExtractedText");
 
