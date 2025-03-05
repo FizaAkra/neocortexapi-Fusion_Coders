@@ -1,130 +1,161 @@
 ﻿using System;
 using System.IO;
+using System.Collections.Generic;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
 namespace TextFromImages
 {
-    // Advanced image processor with multiple filters and transformations
     public class AdvancedImageProcessor : IImageProcessor
     {
         public string ProcessImage(string imagePath, string outputFolder)
         {
-            string outputImagePath = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(imagePath) + "_processed" + Path.GetExtension(imagePath));
+            // Create output directory if it doesn't exist
+            Directory.CreateDirectory(outputFolder);
 
-            using (Image<Rgba32> image = Image.Load<Rgba32>(imagePath))
+            // Generate a unique output filename
+            string outputImagePath = Path.Combine(outputFolder,
+                $"{Path.GetFileNameWithoutExtension(imagePath)}_processed{Path.GetExtension(imagePath)}");
+
+            try
             {
-                // Basic enhancements for OCR
-                try
+                // Load the original image
+                using (Image<Rgba32> originalImage = Image.Load<Rgba32>(imagePath))
                 {
-                    image.Mutate(x => x.Grayscale()); // Convert to grayscale
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error in grayscale: {ex.Message}");
-                }
+                    // Define transformation techniques
+                    var transformations = new List<Action<Image<Rgba32>>>
+                    {
+                        // 1. No transformation (original image)
+                        (img) => {
+                            img.Mutate(x => x.Grayscale());
+                            SaveProcessedImage(img, outputFolder, imagePath, "_original");
+                        },
 
-                // Apply contrast adjustment
-                try
-                {
-                    image.Mutate(x => x.Contrast(1.3f)); // Increase contrast
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error in contrast: {ex.Message}");
-                }
+                        // 2. Rotate 90 degrees
+                        (img) => {
+                            img.Mutate(x => x
+                                .Grayscale()
+                                .Rotate(90f)
+                            );
+                            SaveProcessedImage(img, outputFolder, imagePath, "_rotate_90");
+                        },
 
-                // Apply transformations for better text extraction
+                        // 3. Rotate -90 degrees (270)
+                        (img) => {
+                            img.Mutate(x => x
+                                .Grayscale()
+                                .Rotate(-90f)
+                            );
+                            SaveProcessedImage(img, outputFolder, imagePath, "_rotate_-90");
+                        },
 
-                // 1. Rotation - Try to straighten text
-                try
-                {
-                    // For text that might be slightly rotated, a small angle adjustment can help
-                    float rotationAngle = 0.5f; // Small correction angle, adjust as needed
-                    image.Mutate(x => x.Rotate(rotationAngle));
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error in rotation: {ex.Message}");
-                }
+                        // 4. Slight clockwise rotation
+                        (img) => {
+                            img.Mutate(x => x
+                                .Grayscale()
+                                .Rotate(15f)
+                            );
+                            SaveProcessedImage(img, outputFolder, imagePath, "_rotate_15");
+                        },
 
-                // 2. Skew correction - Fix perspective issues
-                try
-                {
-                    // Apply skew transformation to correct perspective (values are examples)
-                    // This can help with documents photographed at an angle
-                    AffineTransformBuilder builder = new AffineTransformBuilder();
+                        // 5. Slight counter-clockwise rotation
+                        (img) => {
+                            img.Mutate(x => x
+                                .Grayscale()
+                                .Rotate(-15f)
+                            );
+                            SaveProcessedImage(img, outputFolder, imagePath, "_rotate_-15");
+                        },
 
-                    // The following creates a mild perspective correction
-                    // Adjust values as needed for your specific images
-                    Point destination = new Point(0, 0);
-                    PointF source = new PointF(5f, 5f); // Slight shift from corner
+                        // 6. Horizontal shift
+                        (img) => {
+                            img.Mutate(x => x
+                                .Grayscale()
+                                .Crop(new Rectangle(
+                                    img.Width / 10,  // Shift from left
+                                    0,
+                                    img.Width * 9 / 10,  // Crop right side
+                                    img.Height
+                                ))
+                            );
+                            SaveProcessedImage(img, outputFolder, imagePath, "_horizontal_shift");
+                        },
 
-                    Point destination2 = new Point(image.Width, 0);
-                    PointF source2 = new PointF(image.Width - 5f, 5f);
+                        // 7. Vertical shift
+                        (img) => {
+                            img.Mutate(x => x
+                                .Grayscale()
+                                .Crop(new Rectangle(
+                                    0,
+                                    img.Height / 10,  // Shift from top
+                                    img.Width,
+                                    img.Height * 9 / 10  // Crop bottom
+                                ))
+                            );
+                            SaveProcessedImage(img, outputFolder, imagePath, "_vertical_shift");
+                        },
 
-                    Point destination3 = new Point(0, image.Height);
-                    PointF source3 = new PointF(5f, image.Height - 5f);
+                        // 8. Enhanced contrast 
+                        (img) => {
+                            img.Mutate(x => x
+                                .Grayscale()
+                                .Contrast(1.5f)  // Corrected contrast method
+                            );
+                            SaveProcessedImage(img, outputFolder, imagePath, "_enhanced_contrast");
+                        },
 
-                    var matrix = builder.AppendTranslation(new PointF(-5f, -5f));
-                    image.Mutate(x => x.Transform(matrix));
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error in skew correction: {ex.Message}");
-                }
+                        // 9. Brightness adjustment
+                        (img) => {
+                            img.Mutate(x => x
+                                .Grayscale()
+                                .Brightness(1.2f)  // Corrected brightness method
+                            );
+                            SaveProcessedImage(img, outputFolder, imagePath, "_brightness_adjusted");
+                        },
 
-                // 3. Resize for better OCR resolution
-                try
-                {
-                    // Increase size - helps OCR detect smaller text
-                    image.Mutate(x => x.Resize(image.Width * 2, image.Height * 2));
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error in resize: {ex.Message}");
-                }
+                        // 10. Slight skew
+                        (img) => {
+                            img.Mutate(x => x
+                                .Grayscale()
+                                .Rotate(5f)  // Slight rotation as skew alternative
+                            );
+                            SaveProcessedImage(img, outputFolder, imagePath, "_slight_skew");
+                        }
+                    };
 
-                // 4. Binarization - Convert to black and white for clearer text
-                try
-                {
-                    // Separate brightness and contrast operations instead of using BrightnessContrast
-                    image.Mutate(x => x.Brightness(0.2f)); // Adjust brightness
-                    image.Mutate(x => x.Contrast(0.8f));   // Adjust contrast
+                    // Apply all transformations
+                    foreach (var transform in transformations)
+                    {
+                        using (Image<Rgba32> transformedImage = Image.Load<Rgba32>(imagePath))
+                        {
+                            transform(transformedImage);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error processing image {imagePath}: {ex.Message}");
+            }
 
-                    // Increase saturation to make text more visible
-                    image.Mutate(x => x.Saturate(1.5f));
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error in binarization: {ex.Message}");
-                }
+            return outputImagePath;
+        }
 
-                // 5. Edge enhancement - Make text edges more defined
-                try
-                {
-                    // Sharpen the image to enhance text edges
-                    image.Mutate(x => x.GaussianSharpen(3f));
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error in edge enhancement: {ex.Message}");
-                }
+        // Helper method to save processed images with unique names
+        private string SaveProcessedImage(Image<Rgba32> image, string outputFolder, string originalImagePath, string suffix)
+        {
+            string outputImagePath = Path.Combine(outputFolder,
+                $"{Path.GetFileNameWithoutExtension(originalImagePath)}{suffix}{Path.GetExtension(originalImagePath)}");
 
-                // Save the enhanced image
-                try
-                {
-                    image.Save(outputImagePath);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error saving image: {ex.Message}");
-                    // Fallback to saving as PNG if original format has issues
-                    string pngPath = Path.ChangeExtension(outputImagePath, ".png");
-                    image.SaveAsPng(pngPath);
-                    return pngPath;
-                }
+            try
+            {
+                image.Save(outputImagePath);
+                Console.WriteLine($"Saved processed image: {outputImagePath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving image {outputImagePath}: {ex.Message}");
             }
 
             return outputImagePath;
