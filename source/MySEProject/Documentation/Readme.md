@@ -1,52 +1,38 @@
+# TextFromImages - OCR with Image Preprocessing
+
 ## Introduction
-This C# console application is designed to extract text from images using Optical Character Recognition (OCR) technology. The project utilizes Tesseract OCR engine along with image preprocessing capabilities to enhance text extraction accuracy. Our implementation focuses on improving text recognition by applying various image transformations such as rotation, shifting, and quality adjustments before performing the OCR process.
-## System Requirements & Prerequisites
-1. Software Requirements
-   - Visual Studio 2019 or later
-   - .NET Framework 6.0 or higher
-   - Tesseract OCR engine (v5.0.0 or later)
-   - System.Drawing.Common NuGet package
-   - Tesseract NuGet package (v4.1.1 or later)
-2. Installation Steps
-   - Install Visual Studio 2019/2022
-   - Clone the project repository
-   - Install required NuGet packages:
-     * Tesseract (via NuGet Package Manager)
-     * System.Drawing.Common
-     * Tesseract.Drawing
-   - Download and install Tesseract language data files (eng.traineddata)
-## Usage
-1. Application Setup
-   - Place input images in the designated input folder
-   - Configure desired preprocessing parameters
-   - Run the console application with appropriate command-line arguments
-2. Features
-   - Multiple image preprocessing options
-   - Text extraction using Tesseract OCR
-   - Quality comparison of different preprocessing methods
-   - Output in various formats (.txt)
+TextFromImages is a C# console application that extracts text from images using Optical Character Recognition (OCR) technology. The project applies various image preprocessing techniques to improve text extraction accuracy, comparing different transformations to optimize results.
 
-## Project Structure & Implementation
+## Key Features
+- Processes multiple image formats (JPG, JPEG, PNG, BMP, TIFF, GIF)
+- Applies 10+ different image preprocessing techniques
+- Extracts text using Tesseract OCR engine
+- Batch processes all images in a specified folder
+- Saves both processed images and extracted text
 
-1. **Core Components**
-   * ImagePreprocessor: Handles various image transformations
-   * OCREngine: Manages Tesseract integration and text extraction
-   * ResultEvaluator: Compares and analyzes extraction quality
-   * ConsoleInterface: Processes command-line arguments
+## System Requirements
+- .NET 6.0 or higher
+- Visual Studio 2019 or later
 
-2. **Image Preprocessing Pipeline**
-   * Grayscale conversion
-   * Noise reduction
-   * Contrast enhancement
-   * Binarization/thresholding
-   * Rotation correction 
-   * Perspective transformation
-   * Scaling and resolution adjustment
-3. **OCR Processing Flow**
-   * Load image from input directory
-   * Apply selected preprocessing techniques
-   * Initialize Tesseract engine with appropriate parameters
-   * Process image through OCR
-   * Store extracted text and quality metrics
-   * Compare results across different preprocessing methods
-   * Output results to specified format
+## Dependencies (NuGet Packages)
+- `Tesseract` (for OCR text extraction)
+- `SixLabors.ImageSharp` (for image processing operations)
+
+## Installation
+1. Clone the repository or download the source code.
+2. Open the solution in Visual Studio.
+3. Restore NuGet packages.
+4. Download Tesseract language data files:
+   - Create a `tessdata` folder in your project directory.
+   - Download the English language data file (`eng.traineddata`) from the [Tesseract GitHub repository](https://github.com/tesseract-ocr/tessdata).
+   - Place the downloaded file in the `tessdata` folder.
+
+## Project Structure
+The project follows a clean architecture with interfaces for modularity:
+
+- **`Program.cs`**: Entry point, sets up the batch processing pipeline.
+- **`IImageProcessor.cs` & `ITextExtractor.cs`**: Core interfaces.
+- **`AdvancedImageProcessor.cs`**: Implements various image transformations.
+- **`TesseractTextExtractor.cs`**: Handles OCR text extraction.
+- **`ImageBatchProcessor.cs`**: Orchestrates the processing of multiple images.
+- **`ExperimentalImageProcessor.cs`**: Alternative processor with different techniques.
