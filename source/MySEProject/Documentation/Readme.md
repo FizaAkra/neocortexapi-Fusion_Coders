@@ -68,3 +68,25 @@ The application applies these transformations to improve OCR accuracy:
 3. Check the output folders for:
    - Processed images (in `OutputImages` subfolder).
    - Extracted text files (in `ExtractedText` subfolder).
+## Output
+For each input image, the application generates:
+- Multiple processed versions with different transformations.
+- A text file containing the extracted text.
+
+## Customization
+You can customize the application by:
+- Adding new image preprocessing techniques in `AdvancedImageProcessor.cs`.
+- Modifying OCR parameters in `TesseractTextExtractor.cs`.
+- Changing the output format in `ImageBatchProcessor.cs`.
+
+## Future Improvements
+- Command-line interface for specifying input/output folders.
+- Configuration file for OCR and preprocessing settings.
+- Quality comparison between different preprocessing approaches.
+- Support for additional languages.
+- GUI interface.
+
+## Implementation Notes
+- The project uses dependency injection for better testability.
+- The code follows interface-based design for modularity.
+- Error handling is implemented throughout the code.
