@@ -36,3 +36,35 @@ The project follows a clean architecture with interfaces for modularity:
 - **`TesseractTextExtractor.cs`**: Handles OCR text extraction.
 - **`ImageBatchProcessor.cs`**: Orchestrates the processing of multiple images.
 - **`ExperimentalImageProcessor.cs`**: Alternative processor with different techniques.
+## Image Preprocessing Techniques
+The application applies these transformations to improve OCR accuracy:
+
+1. **Basic Grayscale**: Converts image to grayscale.
+2. **Rotation Variations**:
+   - 90° rotation
+   - -90° rotation
+   - 15° clockwise rotation
+   - 15° counter-clockwise rotation
+   - 5° slight skew
+3. **Shifting**:
+   - Horizontal shift
+   - Vertical shift
+4. **Image Enhancement**:
+   - Contrast enhancement
+   - Brightness adjustment
+5. **Experimental Techniques**:
+   - Resizing
+   - Combined transformations
+
+## OCR Processing
+- Uses Tesseract OCR engine.
+- Configures Tesseract to preserve interword spaces.
+- Reports confidence level for extracted text.
+- Post-processes extracted text to remove excessive whitespace.
+
+## Usage
+1. Update the input folder path in `Program.cs` to your images location.
+2. Build and run the application.
+3. Check the output folders for:
+   - Processed images (in `OutputImages` subfolder).
+   - Extracted text files (in `ExtractedText` subfolder).
