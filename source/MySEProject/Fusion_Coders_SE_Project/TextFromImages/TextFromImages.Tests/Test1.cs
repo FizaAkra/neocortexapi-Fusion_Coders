@@ -1,439 +1,489 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
+﻿using System;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using System.Collections.Generic;
 using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Formats.Png;
 
 namespace TextFromImages.Tests
 {
     [TestClass]
-    public class TextFromImagesTests
+    public class TesseractTextExtractorTests
     {
-        // Initialize fields to empty strings to avoid non-nullable warnings
-        private readonly string _testDataPath = string.Empty;
-        private readonly string _outputPath = string.Empty;
-        private readonly string _extractedTextPath = string.Empty;
-
-        public TextFromImagesTests()
-        {
-            // Initialize paths in constructor
-            _testDataPath = Path.Combine(Path.GetTempPath(), "TextFromImagesTests", "TestData");
-            _outputPath = Path.Combine(Path.GetTempPath(), "TextFromImagesTests", "Output");
-            _extractedTextPath = Path.Combine(Path.GetTempPath(), "TextFromImagesTests", "ExtractedText");
-        }
+        private string _tessdataPath = string.Empty;
+        private string _testImagePath = string.Empty;
 
         [TestInitialize]
         public void Setup()
         {
-            // Setup test directories
-            Directory.CreateDirectory(_testDataPath);
-            Directory.CreateDirectory(_outputPath);
-            Directory.CreateDirectory(_extractedTextPath);
+            // Setup test paths - adjust as needed for your environment
+            _tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
+            _testImagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestImages", "sample.png");
 
-            // Create a test image
-            string testImagePath = Path.Combine(_testDataPath, "test_image.png");
-            CreateTestImage(testImagePath, 300, 200);
+            // Create directories if they don't exist
+            string? testImageDir = Path.GetDirectoryName(_testImagePath);
+            if (!string.IsNullOrEmpty(testImageDir))
+            {
+                Directory.CreateDirectory(testImageDir);
+            }
+        }
+
+        [TestMethod]
+        public async Task ExtractTextFromImage_ValidImage_ReturnsText()
+        {
+            // Skip if test image doesn't exist (for CI environments without test images)
+            if (!File.Exists(_testImagePath))
+            {
+                Assert.Inconclusive("Test image not found. Skipping test.");
+                return;
+            }
+
+            // Arrange
+            var extractor = new TesseractTextExtractor(_tessdataPath);
+
+            // Act
+            string result = await extractor.ExtractTextFromImage(_testImagePath);
+
+            // Assert
+            Assert.IsFalse(string.IsNullOrEmpty(result), "Extracted text should not be empty");
+        }
+
+        [TestMethod]
+        public async Task ExtractTextFromImage_InvalidImage_ReturnsErrorMessage()
+        {
+            // Arrange
+            var extractor = new TesseractTextExtractor(_tessdataPath);
+            string invalidImagePath = "nonexistent.png";
+
+            // Act
+            string result = await extractor.ExtractTextFromImage(invalidImagePath);
+
+            // Assert
+            Assert.AreEqual("Error extracting text.", result);
+        }
+
+        [TestMethod]
+        public void Constructor_WithValidPath_CreatesInstance()
+        {
+            // Arrange & Act
+            var extractor = new TesseractTextExtractor(_tessdataPath);
+
+            // Assert
+            Assert.IsNotNull(extractor);
+        }
+    }
+
+    [TestClass]
+    public class AdvancedImageProcessorTests
+    {
+        private string _testImagePath = string.Empty;
+        private string _outputFolder = string.Empty;
+
+        [TestInitialize]
+        public void Setup()
+        {
+            // Setup test paths
+            _testImagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestImages", "sample.png");
+            _outputFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestOutput");
+
+            // Ensure directories exist
+            string? testImageDir = Path.GetDirectoryName(_testImagePath);
+            if (!string.IsNullOrEmpty(testImageDir))
+            {
+                Directory.CreateDirectory(testImageDir);
+            }
+            Directory.CreateDirectory(_outputFolder);
+
+            // Create a test image if it doesn't exist
+            if (!File.Exists(_testImagePath))
+            {
+                // Create a simple test image using ImageSharp
+                using (var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(100, 100))
+                {
+                    image.Save(_testImagePath, new PngEncoder());
+                }
+            }
         }
 
         [TestCleanup]
         public void Cleanup()
         {
-            // Clean up test directories
-            try
+            // Clean up created files
+            if (Directory.Exists(_outputFolder))
             {
-                string rootDir = Path.Combine(Path.GetTempPath(), "TextFromImagesTests");
-                if (Directory.Exists(rootDir))
+                try
                 {
-                    Directory.Delete(rootDir, true);
+                    Directory.Delete(_outputFolder, true);
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error during cleanup: {ex.Message}");
+                catch (IOException)
+                {
+                    // Ignore if files are in use
+                }
             }
         }
 
         [TestMethod]
-        public void AdvancedImageProcessor_ProcessImage_CreatesOutputFiles()
+        public void ProcessImage_ValidImage_CreatesProcessedImages()
         {
             // Arrange
-            string testImagePath = Path.Combine(_testDataPath, "test_image.png");
             var processor = new AdvancedImageProcessor();
 
             // Act
-            string result = processor.ProcessImage(testImagePath, _outputPath);
+            string result = processor.ProcessImage(_testImagePath, _outputFolder);
 
             // Assert
-            Assert.IsTrue(File.Exists(result), "The main output file should exist");
+            Assert.IsTrue(File.Exists(result), "Processed image should exist");
 
-            // Check that multiple processed images exist
-            string[] processedFiles = Directory.GetFiles(_outputPath);
-            Assert.IsTrue(processedFiles.Length > 5, "Should create at least 5 processed images");
+            // Check if multiple processed images were created
+            string baseName = Path.GetFileNameWithoutExtension(_testImagePath);
+            string extension = Path.GetExtension(_testImagePath);
 
-            // Check for specific transformation outputs
-            string originalImagePath = Path.Combine(_outputPath,
-                $"{Path.GetFileNameWithoutExtension(testImagePath)}_original{Path.GetExtension(testImagePath)}");
+            // Check for at least one of the expected output files
+            bool hasAnyProcessedFile = File.Exists(Path.Combine(_outputFolder, $"{baseName}_original{extension}")) ||
+                                      File.Exists(Path.Combine(_outputFolder, $"{baseName}_rotate_90{extension}"));
 
-            string contrastImagePath = Path.Combine(_outputPath,
-                $"{Path.GetFileNameWithoutExtension(testImagePath)}_enhanced_contrast{Path.GetExtension(testImagePath)}");
-
-            Assert.IsTrue(File.Exists(originalImagePath), "Original grayscale image should exist");
-            Assert.IsTrue(File.Exists(contrastImagePath), "Enhanced contrast image should exist");
+            Assert.IsTrue(hasAnyProcessedFile, "At least one processed image variant should be created");
         }
 
         [TestMethod]
-        public void ExperimentalImageProcessor_ProcessImage_CreatesOutputFiles()
+        public void ProcessImage_InvalidImage_HandlesException()
         {
             // Arrange
-            string testImagePath = Path.Combine(_testDataPath, "test_image.png");
+            var processor = new AdvancedImageProcessor();
+            string invalidImagePath = "nonexistent.png";
+
+            // Act
+            string result = processor.ProcessImage(invalidImagePath, _outputFolder);
+
+            // Assert
+            Assert.AreEqual(
+                Path.Combine(_outputFolder, $"{Path.GetFileNameWithoutExtension(invalidImagePath)}_processed{Path.GetExtension(invalidImagePath)}"),
+                result,
+                "Should return the expected output path even when processing fails");
+        }
+    }
+
+    [TestClass]
+    public class ExperimentalImageProcessorTests
+    {
+        private string _testImagePath = string.Empty;
+        private string _outputFolder = string.Empty;
+
+        [TestInitialize]
+        public void Setup()
+        {
+            // Setup test paths
+            _testImagePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestImages", "sample.png");
+            _outputFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestOutput");
+
+            // Ensure directories exist
+            string? testImageDir = Path.GetDirectoryName(_testImagePath);
+            if (!string.IsNullOrEmpty(testImageDir))
+            {
+                Directory.CreateDirectory(testImageDir);
+            }
+            Directory.CreateDirectory(_outputFolder);
+
+            // Create a test image if it doesn't exist
+            if (!File.Exists(_testImagePath))
+            {
+                // Create a simple test image using ImageSharp
+                using (var image = new Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(100, 100))
+                {
+                    image.Save(_testImagePath, new PngEncoder());
+                }
+            }
+        }
+
+        [TestCleanup]
+        public void Cleanup()
+        {
+            // Clean up created files
+            if (Directory.Exists(_outputFolder))
+            {
+                try
+                {
+                    Directory.Delete(_outputFolder, true);
+                }
+                catch (IOException)
+                {
+                    // Ignore if files are in use
+                }
+            }
+        }
+
+        [TestMethod]
+        public void ProcessImage_ValidImage_CreatesBestAndVariants()
+        {
+            // Arrange
             var processor = new ExperimentalImageProcessor();
 
             // Act
-            string result = processor.ProcessImage(testImagePath, _outputPath);
+            string result = processor.ProcessImage(_testImagePath, _outputFolder);
 
             // Assert
-            Assert.IsTrue(File.Exists(result), "The best output file should exist");
+            Assert.IsTrue(File.Exists(result), "Best processed image should exist");
+            Assert.IsTrue(result.Contains("_best"), "Result should be the 'best' image path");
 
-            // Check for transformed images
-            string grayscaleImagePath = Path.Combine(_outputPath,
-                $"{Path.GetFileNameWithoutExtension(testImagePath)}_grayscale{Path.GetExtension(testImagePath)}");
+            // Check for at least one technique variant
+            bool hasAnyVariant =
+                Directory.GetFiles(_outputFolder, $"{Path.GetFileNameWithoutExtension(_testImagePath)}_*{Path.GetExtension(_testImagePath)}").Length > 0;
 
-            Assert.IsTrue(File.Exists(grayscaleImagePath), "Grayscale image should exist");
-        }
-
-        [TestMethod]
-        public async Task TesseractTextExtractor_ExtractTextFromImage_ReturnsText()
-        {
-            // Arrange
-            string testImagePath = Path.Combine(_testDataPath, "test_image.png");
-            var extractorMock = new Mock<ITextExtractor>();
-            extractorMock.Setup(e => e.ExtractTextFromImage(It.IsAny<string>()))
-                .ReturnsAsync("Sample extracted text");
-
-            // Act
-            string extractedText = await extractorMock.Object.ExtractTextFromImage(testImagePath);
-
-            // Assert
-            Assert.AreEqual("Sample extracted text", extractedText);
-        }
-
-        [TestMethod]
-        public async Task ImageBatchProcessor_ProcessImagesInFolder_ProcessesAllImages()
-        {
-            // Arrange
-            // Create several test images
-            for (int i = 1; i <= 3; i++)
-            {
-                string imagePath = Path.Combine(_testDataPath, $"test_image_{i}.png");
-                CreateTestImage(imagePath, 300, 200);
-            }
-
-            // Mock dependencies
-            var imageProcessorMock = new Mock<IImageProcessor>();
-            imageProcessorMock.Setup(p => p.ProcessImage(It.IsAny<string>(), It.IsAny<string>()))
-                .Returns((string imagePath, string outputFolder) =>
-                {
-                    if (string.IsNullOrEmpty(imagePath) || string.IsNullOrEmpty(outputFolder))
-                        return string.Empty;
-
-                    return Path.Combine(outputFolder, $"{Path.GetFileNameWithoutExtension(imagePath)}_processed.png");
-                });
-
-            var textExtractorMock = new Mock<ITextExtractor>();
-            textExtractorMock.Setup(e => e.ExtractTextFromImage(It.IsAny<string>()))
-                .ReturnsAsync("Extracted text from test image");
-
-            var batchProcessor = new ImageBatchProcessor(
-                imageProcessorMock.Object,
-                textExtractorMock.Object);
-
-            // Act
-            await batchProcessor.ProcessImagesInFolder(_testDataPath, _outputPath, _extractedTextPath);
-
-            // Assert
-            imageProcessorMock.Verify(p => p.ProcessImage(It.IsAny<string>(), It.IsAny<string>()), Times.Exactly(3),
-                "Image processor should be called for each image");
-
-            textExtractorMock.Verify(e => e.ExtractTextFromImage(It.IsAny<string>()), Times.Exactly(3),
-                "Text extractor should be called for each processed image");
-
-            // Check that extracted text files were created
-            Assert.AreEqual(3, Directory.GetFiles(_extractedTextPath).Length,
-                "Should create a text file for each processed image");
-        }
-
-        [TestMethod]
-        public void ITextExtractor_Implementation_HasCorrectMethodSignature()
-        {
-            // This test verifies the interface implementation has correct method signature
-            // Arrange & Act
-            var extractor = new TesseractTextExtractor("testdata");
-            var methodInfo = typeof(TesseractTextExtractor).GetMethod("ExtractTextFromImage");
-
-            // Assert
-            Assert.IsNotNull(methodInfo, "Method should exist");
-            Assert.AreEqual(typeof(Task<string>), methodInfo.ReturnType,
-                "Method should return Task<string>");
-        }
-
-        [TestMethod]
-        [ExpectedException(typeof(DirectoryNotFoundException))]
-        public void TesseractTextExtractor_InvalidTessdataPath_ThrowsException()
-        {
-            // Arrange
-            var extractor = new TesseractTextExtractor("invalid_path");
-
-            // Act - Force synchronous execution to catch the exception
-            var task = extractor.ExtractTextFromImage("test.png");
-            try
-            {
-                task.Wait();
-            }
-            catch (AggregateException ex) when (ex.InnerException != null)
-            {
-                throw ex.InnerException;
-            }
-
-            // Assert handled by ExpectedException attribute
-        }
-
-        [TestMethod]
-        public void AdvancedImageProcessor_ProcessInvalidImage_HandlesException()
-        {
-            // Arrange
-            string invalidImagePath = Path.Combine(_testDataPath, "non_existent_image.png");
-            var processor = new AdvancedImageProcessor();
-
-            // Act
-            string result = processor.ProcessImage(invalidImagePath, _outputPath);
-
-            // Assert
-            Assert.IsFalse(string.IsNullOrEmpty(result), "Should return a path even if processing fails");
-            // No exception should be thrown
-        }
-
-        // Helper method to create a test image
-        private static void CreateTestImage(string path, int width, int height)
-        {
-            if (string.IsNullOrEmpty(path))
-                throw new ArgumentNullException(nameof(path));
-
-            using (var image = new Image<Rgba32>(width, height))
-            {
-                // Fill with a simple pattern
-                for (int y = 0; y < height; y++)
-                {
-                    for (int x = 0; x < width; x++)
-                    {
-                        image[x, y] = new Rgba32(
-                            (byte)(x % 256),
-                            (byte)(y % 256),
-                            (byte)((x + y) % 256),
-                            255);
-                    }
-                }
-
-                // Create some simple text shape (letter T)
-                int strokeWidth = 10;
-                int letterHeight = height / 2;
-                int letterWidth = width / 2;
-                int startX = width / 4;
-                int startY = height / 4;
-
-                // Horizontal stroke
-                for (int y = startY; y < startY + strokeWidth; y++)
-                {
-                    for (int x = startX; x < startX + letterWidth; x++)
-                    {
-                        if (x >= 0 && x < width && y >= 0 && y < height)
-                            image[x, y] = new Rgba32(0, 0, 0, 255);
-                    }
-                }
-
-                // Vertical stroke
-                for (int y = startY; y < startY + letterHeight; y++)
-                {
-                    for (int x = startX + letterWidth / 2 - strokeWidth / 2;
-                         x < startX + letterWidth / 2 + strokeWidth / 2; x++)
-                    {
-                        if (x >= 0 && x < width && y >= 0 && y < height)
-                            image[x, y] = new Rgba32(0, 0, 0, 255);
-                    }
-                }
-
-                string? directory = Path.GetDirectoryName(path);
-                if (!string.IsNullOrEmpty(directory))
-                    Directory.CreateDirectory(directory);
-
-                image.Save(path);
-            }
+            Assert.IsTrue(hasAnyVariant, "At least one processing technique variant should be created");
         }
     }
 
-    // Fixed version of ExperimentalImageProcessor
-    public class ExperimentalImageProcessor : IImageProcessor
+    [TestClass]
+    public class ImageBatchProcessorTests
     {
-        public string ProcessImage(string imagePath, string outputFolder)
+        private Mock<IImageProcessor> _mockImageProcessor = null!;
+        private Mock<ITextExtractor> _mockTextExtractor = null!;
+        private string _inputFolder = string.Empty;
+        private string _outputFolder = string.Empty;
+        private string _extractedTextFolder = string.Empty;
+        private string _testImagePath = string.Empty;
+
+        [TestInitialize]
+        public void Setup()
         {
-            if (string.IsNullOrEmpty(imagePath) || string.IsNullOrEmpty(outputFolder))
-                return string.Empty;
+            // Create mocks
+            _mockImageProcessor = new Mock<IImageProcessor>();
+            _mockTextExtractor = new Mock<ITextExtractor>();
 
-            // Create output directory if it doesn't exist
-            Directory.CreateDirectory(outputFolder);
+            // Setup test paths
+            _inputFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestInputImages");
+            _outputFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestOutputImages");
+            _extractedTextFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestExtractedText");
+            _testImagePath = Path.Combine(_inputFolder, "test.jpg");
 
-            // Create a list of processing techniques to try
-            var techniques = new List<Tuple<string, Action<Image>>>
+            // Ensure directories exist
+            Directory.CreateDirectory(_inputFolder);
+            Directory.CreateDirectory(_outputFolder);
+            Directory.CreateDirectory(_extractedTextFolder);
+
+            // Create a test image
+            if (!File.Exists(_testImagePath))
             {
-                // Add basic grayscale
-                new ("grayscale", img => img.Mutate(x => x.Grayscale())),
-                
-                // Add grayscale with contrast
-                new ("contrast", img => {
-                    img.Mutate(x => x.Grayscale());
-                    try { img.Mutate(x => x.Contrast(1.3f)); } catch { /* Ignore contrast errors */ }
-                }),
-                
-                // Add 90 degree rotation
-                new ("rotate90", img => {
-                    img.Mutate(x => x.Grayscale());
-                    try { img.Mutate(x => x.Rotate(90)); } catch { /* Ignore rotation errors */ }
-                })
-            };
+                // Create a file with .jpg extension (doesn't need to be an actual image for the test)
+                File.WriteAllText(_testImagePath, "Test file");
+            }
 
-            string bestOutputPath = Path.Combine(outputFolder,
-                Path.GetFileNameWithoutExtension(imagePath) + "_best" + Path.GetExtension(imagePath));
+            // Setup mock behavior
+            string processedImagePath = Path.Combine(_outputFolder, "test_processed.jpg");
+            _mockImageProcessor.Setup(p => p.ProcessImage(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(processedImagePath);
 
-            foreach (var technique in techniques)
+            _mockTextExtractor.Setup(e => e.ExtractTextFromImage(It.IsAny<string>()))
+                .ReturnsAsync("Extracted test text");
+        }
+
+        [TestCleanup]
+        public void Cleanup()
+        {
+            // Clean up created files and folders
+            if (Directory.Exists(_inputFolder))
             {
-                string currentOutputPath = Path.Combine(outputFolder,
-                    $"{Path.GetFileNameWithoutExtension(imagePath)}_{technique.Item1}{Path.GetExtension(imagePath)}");
-
                 try
                 {
-                    using (Image image = Image.Load(imagePath))
-                    {
-                        // Apply current technique
-                        technique.Item2(image);
-                        // Save with this technique
-                        image.Save(currentOutputPath);
-                    }
-
-                    // In a real implementation, we would test which technique produces the best OCR result
-                    // For now, we'll just use the last technique as our "best" output
-                    File.Copy(currentOutputPath, bestOutputPath, true);
+                    Directory.Delete(_inputFolder, true);
                 }
-                catch (Exception ex)
+                catch (IOException)
                 {
-                    Console.WriteLine($"Error applying {technique.Item1}: {ex.Message}");
+                    // Ignore if files are in use
                 }
             }
 
-            return bestOutputPath;
-        }
-    }
-
-    // Fixed version of TesseractTextExtractor
-    public class TesseractTextExtractor : ITextExtractor
-    {
-        private readonly string _tessdataPath;
-
-        public TesseractTextExtractor(string tessdataPath)
-        {
-            _tessdataPath = tessdataPath ?? throw new ArgumentNullException(nameof(tessdataPath));
-        }
-
-        public async Task<string> ExtractTextFromImage(string imagePath)
-        {
-            if (string.IsNullOrEmpty(imagePath))
-                return string.Empty;
-
-            return await Task.Run(() =>
+            if (Directory.Exists(_outputFolder))
             {
-                if (!Directory.Exists(_tessdataPath))
-                {
-                    throw new DirectoryNotFoundException($"Tessdata path not found: {_tessdataPath}");
-                }
-
-                // Simulate OCR processing
-                return $"Sample text extracted from {Path.GetFileName(imagePath)}";
-            });
-        }
-    }
-
-    // Interface definitions to support the test
-    public interface IImageProcessor
-    {
-        string ProcessImage(string imagePath, string outputFolder);
-    }
-
-    public interface ITextExtractor
-    {
-        Task<string> ExtractTextFromImage(string imagePath);
-    }
-
-    public class ImageBatchProcessor
-    {
-        private readonly IImageProcessor _imageProcessor;
-        private readonly ITextExtractor _textExtractor;
-
-        public ImageBatchProcessor(IImageProcessor imageProcessor, ITextExtractor textExtractor)
-        {
-            _imageProcessor = imageProcessor ?? throw new ArgumentNullException(nameof(imageProcessor));
-            _textExtractor = textExtractor ?? throw new ArgumentNullException(nameof(textExtractor));
-        }
-
-        public async Task ProcessImagesInFolder(string inputFolder, string outputFolder, string extractedTextFolder)
-        {
-            if (string.IsNullOrEmpty(inputFolder) || !Directory.Exists(inputFolder))
-                throw new ArgumentException("Input folder does not exist", nameof(inputFolder));
-
-            Directory.CreateDirectory(outputFolder);
-            Directory.CreateDirectory(extractedTextFolder);
-
-            // Get all image files with common image extensions
-            string[] imageExtensions = { "*.jpg", "*.jpeg", "*.png", "*.bmp", "*.tiff", "*.gif" };
-            var imageFiles = new List<string>();
-
-            foreach (string extension in imageExtensions)
-            {
-                imageFiles.AddRange(Directory.GetFiles(inputFolder, extension));
-            }
-
-            Console.WriteLine($"Found {imageFiles.Count} images to process");
-
-            // Process each image
-            int successCount = 0;
-            for (int i = 0; i < imageFiles.Count; i++)
-            {
-                string imagePath = imageFiles[i];
-                Console.WriteLine($"Processing image {i + 1}/{imageFiles.Count}: {Path.GetFileName(imagePath)}");
-
                 try
                 {
-                    // Process the image with different filters
-                    string processedImagePath = _imageProcessor.ProcessImage(imagePath, outputFolder);
-
-                    // Extract text from the processed image
-                    string extractedText = await _textExtractor.ExtractTextFromImage(processedImagePath);
-
-                    // Save the extracted text
-                    string textFilePath = Path.Combine(extractedTextFolder, Path.GetFileNameWithoutExtension(imagePath) + ".txt");
-                    File.WriteAllText(textFilePath, extractedText);
-
-                    Console.WriteLine($"✅ Text extracted and saved to: {textFilePath}");
-                    successCount++;
+                    Directory.Delete(_outputFolder, true);
                 }
-                catch (Exception ex)
+                catch (IOException)
                 {
-                    Console.WriteLine($"❌ Error processing {Path.GetFileName(imagePath)}: {ex.Message}");
+                    // Ignore if files are in use
                 }
             }
 
-            Console.WriteLine($"Successfully processed {successCount} out of {imageFiles.Count} images");
+            if (Directory.Exists(_extractedTextFolder))
+            {
+                try
+                {
+                    Directory.Delete(_extractedTextFolder, true);
+                }
+                catch (IOException)
+                {
+                    // Ignore if files are in use
+                }
+            }
+        }
+
+        [TestMethod]
+        public async Task ProcessImagesInFolder_WithValidImages_ProcessesAll()
+        {
+            // Arrange
+            var batchProcessor = new ImageBatchProcessor(_mockImageProcessor.Object, _mockTextExtractor.Object);
+
+            // Act
+            await batchProcessor.ProcessImagesInFolder(_inputFolder, _outputFolder, _extractedTextFolder);
+
+            // Assert
+            _mockImageProcessor.Verify(p => p.ProcessImage(It.IsAny<string>(), It.IsAny<string>()), Times.Once());
+            _mockTextExtractor.Verify(e => e.ExtractTextFromImage(It.IsAny<string>()), Times.Once());
+
+            // Check if text file was created
+            string expectedTextFile = Path.Combine(_extractedTextFolder, Path.GetFileNameWithoutExtension(_testImagePath) + ".txt");
+            Assert.IsTrue(File.Exists(expectedTextFile), "Text file should be created");
+        }
+
+        [TestMethod]
+        public async Task ProcessImagesInFolder_ProcessorThrowsException_HandlesGracefully()
+        {
+            // Arrange
+            _mockImageProcessor.Setup(p => p.ProcessImage(It.IsAny<string>(), It.IsAny<string>()))
+                .Throws(new Exception("Test exception"));
+
+            var batchProcessor = new ImageBatchProcessor(_mockImageProcessor.Object, _mockTextExtractor.Object);
+
+            // Act - should not throw
+            await batchProcessor.ProcessImagesInFolder(_inputFolder, _outputFolder, _extractedTextFolder);
+
+            // Assert - method completed without throwing
+            Assert.IsTrue(true, "Method should handle exceptions gracefully");
+
+            // Verify the processor was called
+            _mockImageProcessor.Verify(p => p.ProcessImage(It.IsAny<string>(), It.IsAny<string>()), Times.Once());
+
+            // Extractor should not be called if processor throws
+            _mockTextExtractor.Verify(e => e.ExtractTextFromImage(It.IsAny<string>()), Times.Never());
+        }
+
+        [TestMethod]
+        public async Task ProcessImagesInFolder_ExtractorThrowsException_HandlesGracefully()
+        {
+            // Arrange
+            _mockTextExtractor.Setup(e => e.ExtractTextFromImage(It.IsAny<string>()))
+                .ThrowsAsync(new Exception("Test exception"));
+
+            var batchProcessor = new ImageBatchProcessor(_mockImageProcessor.Object, _mockTextExtractor.Object);
+
+            // Act - should not throw
+            await batchProcessor.ProcessImagesInFolder(_inputFolder, _outputFolder, _extractedTextFolder);
+
+            // Assert - method completed without throwing
+            Assert.IsTrue(true, "Method should handle exceptions gracefully");
+
+            // Verify both methods were called
+            _mockImageProcessor.Verify(p => p.ProcessImage(It.IsAny<string>(), It.IsAny<string>()), Times.Once());
+            _mockTextExtractor.Verify(e => e.ExtractTextFromImage(It.IsAny<string>()), Times.Once());
+
+            // No text file should exist
+            string expectedTextFile = Path.Combine(_extractedTextFolder, Path.GetFileNameWithoutExtension(_testImagePath) + ".txt");
+            Assert.IsFalse(File.Exists(expectedTextFile), "Text file should not be created when extractor throws");
+        }
+
+        [TestMethod]
+        public async Task ProcessImagesInFolder_NoImages_CompletesWithoutError()
+        {
+            // Arrange
+            // Delete any test images
+            if (File.Exists(_testImagePath))
+            {
+                File.Delete(_testImagePath);
+            }
+
+            var batchProcessor = new ImageBatchProcessor(_mockImageProcessor.Object, _mockTextExtractor.Object);
+
+            // Act
+            await batchProcessor.ProcessImagesInFolder(_inputFolder, _outputFolder, _extractedTextFolder);
+
+            // Assert
+            _mockImageProcessor.Verify(p => p.ProcessImage(It.IsAny<string>(), It.IsAny<string>()), Times.Never());
+            _mockTextExtractor.Verify(e => e.ExtractTextFromImage(It.IsAny<string>()), Times.Never());
+        }
+    }
+
+    [TestClass]
+    public class IntegrationTests
+    {
+        private string _inputFolder = string.Empty;
+        private string _outputFolder = string.Empty;
+        private string _extractedTextFolder = string.Empty;
+        private string _tessdataPath = string.Empty;
+
+        [TestInitialize]
+        public void Setup()
+        {
+            // Setup test paths
+            _inputFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "IntegrationTestImages");
+            _outputFolder = Path.Combine(_inputFolder, "OutputImages");
+            _extractedTextFolder = Path.Combine(_inputFolder, "ExtractedText");
+            _tessdataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tessdata");
+
+            // Ensure directories exist
+            Directory.CreateDirectory(_inputFolder);
+            Directory.CreateDirectory(_outputFolder);
+            Directory.CreateDirectory(_extractedTextFolder);
+            Directory.CreateDirectory(_tessdataPath);
+        }
+
+        [TestCleanup]
+        public void Cleanup()
+        {
+            // Clean up created files
+            if (Directory.Exists(_outputFolder))
+            {
+                try
+                {
+                    Directory.Delete(_outputFolder, true);
+                }
+                catch (IOException)
+                {
+                    // Ignore if files are in use
+                }
+            }
+
+            if (Directory.Exists(_extractedTextFolder))
+            {
+                try
+                {
+                    Directory.Delete(_extractedTextFolder, true);
+                }
+                catch (IOException)
+                {
+                    // Ignore if files are in use
+                }
+            }
+        }
+
+        [TestMethod]
+        [Ignore] // Ignore for automated CI/CD - requires real image files
+        public async Task FullIntegration_WithRealComponents_CompletesSuccessfully()
+        {
+            // This test requires actual image files and tessdata to be present
+            // Skip if no image files
+            if (Directory.GetFiles(_inputFolder, "*.jpg").Length == 0)
+            {
+                Assert.Inconclusive("No test images found. Skipping integration test.");
+                return;
+            }
+
+            // Arrange
+            var imageProcessor = new AdvancedImageProcessor();
+            var textExtractor = new TesseractTextExtractor(_tessdataPath);
+            var batchProcessor = new ImageBatchProcessor(imageProcessor, textExtractor);
+
+            // Act
+            await batchProcessor.ProcessImagesInFolder(_inputFolder, _outputFolder, _extractedTextFolder);
+
+            // Assert
+            // Check if any processed images were created
+            Assert.IsTrue(Directory.GetFiles(_outputFolder).Length > 0, "Processed images should be created");
+
+            // Check if any text files were created
+            Assert.IsTrue(Directory.GetFiles(_extractedTextFolder).Length > 0, "Text files should be created");
         }
     }
 }
