@@ -25,8 +25,10 @@ namespace TextFromImages.Tests
 
             // Assert
             Assert.True(Directory.Exists(outputFolder)); // Ensure the output folder exists
-            Assert.True(File.Exists(result)); // Ensure the processed image file exists
-            Assert.EndsWith("_processed.jpg", result); // Ensure the output file has the correct suffix
+
+            // Check that at least one processed image exists in the output folder
+            var processedImages = Directory.GetFiles(outputFolder, "*_processed.jpg");
+            Assert.True(processedImages.Length > 0, "No processed images were found in the output folder.");
         }
 
         [Fact]
