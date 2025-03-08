@@ -12,21 +12,18 @@ namespace TextFromImages
             string outputFolder = Path.Combine(inputFolder, "OutputImages");
             string extractedTextFolder = Path.Combine(inputFolder, "ExtractedText");
 
-            // Ensure output directories exist
             Directory.CreateDirectory(outputFolder);
             Directory.CreateDirectory(extractedTextFolder);
 
-            // Create batch processor instance
             ImageBatchProcessor batchProcessor = new ImageBatchProcessor(
                 new AdvancedImageProcessor(),
-                new TesseractTextExtractor("tessdata") // Path to tessdata folder
+                new TesseractTextExtractor("tessdata")
             );
 
-            // Process all images in the folder
             await batchProcessor.ProcessImagesInFolder(inputFolder, outputFolder, extractedTextFolder);
 
             Console.WriteLine("🎉 All images processed successfully!");
-            Console.ReadKey(); // Keep console window open
+            Console.ReadKey();
         }
     }
 }
