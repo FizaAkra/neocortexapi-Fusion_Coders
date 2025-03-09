@@ -90,3 +90,35 @@ You can customize the application by:
 - The project uses dependency injection for better testability.
 - The code follows interface-based design for modularity.
 - Error handling is implemented throughout the code.
+## Testing
+
+The TextFromImages project includes comprehensive unit tests to ensure functionality and reliability. The test suite covers all major components of the system, including image processing, text extraction, and batch operations.
+
+### Test Structure
+
+The tests are organized in the following classes:
+
+- **AdvancedImageProcessorTests**: Validates the standard image processing techniques.
+- **ExperimentalImageProcessorTests**: Tests the experimental image processing methods.
+- **ImageBatchProcessorTests**: Ensures batch processing functionality works correctly.
+
+### Testing Tools
+
+The project uses multiple testing frameworks and tools:
+
+- **xUnit** (v2.9.x): Primary testing framework.
+- **Moq** (v4.18.x): For creating mock objects and testing component interactions.
+- **MSTest** (v3.6.x): Additional testing capabilities.
+- **xunit.runner.visualstudio** (v3.0.x): Visual Studio integration for running tests.
+
+### Key Test Cases
+
+1. **Image Processing Tests**:
+   - Verifies processed images are saved correctly.
+   - Checks that all image transformations are properly applied.
+   - Tests error handling with invalid image paths.
+
+2. **Batch Processing Tests**:
+   - Validates batch operations process all images in a folder.
+   - Confirms proper interaction between processor and extractor components.
+   - Uses mocks to isolate component interactions.
